@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ ElderGuard - Emergency Response Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 1.2rem;
+            margin-top: 0.5rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px rgba(0,0,0,0.15);
+        }
+        
+        .card h2 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-active { background: #27ae60; }
+        .status-inactive { background: #95a5a6; }
+        .status-emergency { background: #e74c3c; animation: flash 1s infinite; }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes flash {
+            0%, 50% { opacity: 1; }
+            25%, 75% { opacity: 0.3; }
+        }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .metric:last-child { border-bottom: none; }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .emergency-alert {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            animation: emergencyPulse 2s infinite;
+            display: none;
+        }
+        
+        @keyframes emergencyPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .speech-display {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            color: #2c3e50;
+            border-left: 4px solid #3498db;
+            min-height: 60px;
+        }
+        
+        .language-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-left: 1rem;
+        }
+        
+        .lang-english { background: #3498db; color: white; }
+        .lang-spanish { background: #e67e22; color: white; }
+        .lang-french { background: #9b59b6; color: white; }
+        .lang-german { background: #1abc9c; color: white; }
+        
+        .confidence-bar {
+            width: 100%;
+            height: 10px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        
+        .contact-list {
+            list-style: none;
+        }
+        
+        .contact-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .contact-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #27ae60;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            display: block;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ ElderGuard Emergency Response System</h1>
+        <p class="subtitle">Advanced Voice-Activated Safety Monitoring for Elderly Care</p>
+    </div>
+    
+    <div class="emergency-alert" id="emergencyAlert">
+        <h2>🚨 EMERGENCY DETECTED 🚨</h2>
+        <p id="emergencyDetails">Emergency situation requires immediate attention!</p>
+        <div style="margin-top: 1rem;">
+            <strong>🔄 Automatic Response Activated</strong><br>
+            Emergency contacts have been notified
+        </div>
+    </div>
+    
+    <div class="dashboard">
+        <!-- System Status Card -->
+        <div class="card">
+            <h2>📊 System Status <span class="status-indicator status-inactive" id="statusIndicator"></span></h2>
+            <div class="metric">
+                <span>Monitoring Status</span>
+                <span class="metric-value" id="monitoringStatus">Inactive</span>
+            </div>
+            <div class="metric">
+                <span>System Uptime</span>
+                <span class="metric-value" id="uptime">00:00:00</span>
+            </div>
+            <div class="metric">
+                <span>Emergencies Detected</span>
+                <span class="metric-value" id="emergencyCount">0</span>
+            </div>
+            <div class="metric">
+                <span>Detection Confidence</span>
+                <span class="metric-value" id="confidence">0%</span>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" id="confidenceFill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Voice Recognition Card -->
+        <div class="card">
+            <h2>🎤 Live Voice Recognition</h2>
+            <div class="speech-display" id="lastHeard">
+                Waiting for voice input...
+            </div>
+            <div style="margin-top: 1rem;">
+                <span>Detected Language:</span>
+                <span class="language-badge lang-english" id="languageBadge">English</span>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <span class="stat-number" id="wordsProcessed">0</span>
+                    <div class="stat-label">Words Processed</div>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" id="averageConfidence">0%</span>
+                    <div class="stat-label">Avg Confidence</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Control Panel Card -->
+        <div class="card">
+            <h2>🎛️ Control Panel</h2>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="startMonitoring()">
+                    ▶️ Start Monitoring
+                </button>
+                <button class="btn btn-danger" onclick="stopMonitoring()">
+                    ⏹️ Stop Monitoring
+                </button>
+                <button class="btn btn-warning" onclick="simulateEmergency()">
+                    🚨 Simulate Emergency
+                </button>
+            </div>
+            
+            <div style="margin-top: 2rem;">
+                <h3 style="color: #2c3e50; margin-bottom: 1rem;">Emergency Keywords</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    <span style="background: #3498db; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.9rem;">help</span>
+                    <span style="background: #e74c3c; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.9rem;">emergency</span>
+                    <span style="background: #f39c12; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.9rem;">fallen</span>
+                    <span style="background: #27ae60; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.9rem;">pain</span>
+                    <span style="background: #9b59b6; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.9rem;">ayuda</span>
+                    <span style="background: #1abc9c; color: white; padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.9rem;">aide</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Emergency Contacts Card -->
+        <div class="card">
+            <h2>📱 Emergency Contacts</h2>
+            <ul class="contact-list">
+                <li class="contact-item">
+                    <div>
+                        <strong>Primary Caregiver</strong><br>
+                        <small>+1234567890</small>
+                    </div>
+                    <div class="contact-status"></div>
+                </li>
+                <li class="contact-item">
+                    <div>
+                        <strong>Family Member</strong><br>
+                        <small>family@example.com</small>
+                    </div>
+                    <div class="contact-status"></div>
+                </li>
+                <li class="contact-item">
+                    <div>
+                        <strong>Medical Center</strong><br>
+                        <small>911 Emergency</small>
+                    </div>
+                    <div class="contact-status"></div>
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Activity Log Card -->
+        <div class="card">
+            <h2>📝 Activity Log</h2>
+            <div id="activityLog" style="max-height: 300px; overflow-y: auto;">
+                <div style="color: #7f8c8d; text-align: center; padding: 2rem;">
+                    No activity yet. Start monitoring to see live updates.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics Card -->
+        <div class="card">
+            <h2>📈 System Analytics</h2>
+            <div style="position: relative; height: 200px;">
+                <canvas id="analyticsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let statusUpdateInterval;
+        let activityCounter = 0;
+        let chart;
+        
+        // Initialize Chart
+        function initChart() {
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Voice Activity',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update status from server
+        function updateStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    // Update indicators
+                    const indicator = document.getElementById('statusIndicator');
+                    const emergencyAlert = document.getElementById('emergencyAlert');
+                    
+                    if (data.emergency_active) {
+                        indicator.className = 'status-indicator status-emergency';
+                        emergencyAlert.style.display = 'block';
+                        document.getElementById('emergencyDetails').textContent = 
+                            data.last_emergency ? data.last_emergency.text : 'Emergency detected!';
+                    } else if (data.monitoring) {
+                        indicator.className = 'status-indicator status-active';
+                        emergencyAlert.style.display = 'none';
+                    } else {
+                        indicator.className = 'status-indicator status-inactive';
+                        emergencyAlert.style.display = 'none';
+                    }
+                    
+                    // Update metrics
+                    document.getElementById('monitoringStatus').textContent = 
+                        data.monitoring ? 'Active' : 'Inactive';
+                    document.getElementById('uptime').textContent = formatUptime(data.uptime);
+                    document.getElementById('emergencyCount').textContent = data.emergency_count;
+                    document.getElementById('confidence').textContent = data.confidence + '%';
+                    document.getElementById('confidenceFill').style.width = data.confidence + '%';
+                    
+                    // Update voice recognition
+                    if (data.last_heard) {
+                        document.getElementById('lastHeard').textContent = data.last_heard;
+                        addActivityLog(data.last_heard, data.emergency_active);
+                    }
+                    
+                    // Update language badge
+                    const langBadge = document.getElementById('languageBadge');
+                    langBadge.textContent = capitalizeFirst(data.language);
+                    langBadge.className = 'language-badge lang-' + data.language;
+                    
+                    // Update chart
+                    updateChart(data.confidence);
+                });
+        }
+        
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+        
+        function addActivityLog(text, isEmergency) {
+            const log = document.getElementById('activityLog');
+            const entry = document.createElement('div');
+            entry.style.cssText = `
+                padding: 0.5rem;
+                margin-bottom: 0.5rem;
+                border-radius: 5px;
+                font-size: 0.9rem;
+                ${isEmergency ? 'background: #ffe6e6; border-left: 4px solid #e74c3c;' : 'background: #f8f9fa; border-left: 4px solid #3498db;'}
+            `;
+            entry.innerHTML = `
+                <div style="font-weight: 600; color: ${isEmergency ? '#e74c3c' : '#2c3e50'};">
+                    ${isEmergency ? '🚨 EMERGENCY' : '👂 Voice Input'}
+                </div>
+                <div style="margin-top: 0.3rem;">${text}</div>
+                <small style="color: #7f8c8d;">${new Date().toLocaleTimeString()}</small>
+            `;
+            
+            log.insertBefore(entry, log.firstChild);
+            
+            // Keep only last 10 entries
+            while (log.children.length > 10) {
+                log.removeChild(log.lastChild);
+            }
+        }
+        
+        function updateChart(confidence) {
+            const now = new Date().toLocaleTimeString();
+            chart.data.labels.push(now);
+            chart.data.datasets[0].data.push(confidence);
+            
+            // Keep only last 10 data points
+            if (chart.data.labels.length > 10) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update();
+        }
+        
+        // Control functions
+        function startMonitoring() {
+            fetch('/api/start_monitoring')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Monitoring started');
+                });
+        }
+        
+        function stopMonitoring() {
+            fetch('/api/stop_monitoring')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Monitoring stopped');
+                });
+        }
+        
+        function simulateEmergency() {
+            fetch('/api/simulate_emergency')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Emergency simulated');
+                });
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            updateStatus();
+            statusUpdateInterval = setInterval(updateStatus, 1000);
+        });
+    </script>
+</body>
+</html>
